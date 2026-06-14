@@ -34,7 +34,7 @@ function listStudents_(p, s) {
     var nb = latest[st.student_id];
     return {
       student_id: st.student_id, name: st.name, class: st['class'],
-      consent: !!consent[st.student_id],
+      consent: !!consent[normId_(st.student_id)],
       readiness_band: nb ? nb.readiness_band : null,
       category: nb ? nb.category : null,
     };
@@ -133,46 +133,94 @@ function mockComposites_(studentId) {
   return Object.keys(byDate).sort().map(function (d) { return mean_(byDate[d]); });
 }
 
+// Group a table's rows by canonical student_id in a single pass.
+function indexByStudent_(table) {
+  var idx = {};
+  readTable_(table).forEach(function (r) {
+    var k = normId_(r.student_id);
+    (idx[k] = idx[k] || []).push(r);
+  });
+  return idx;
+}
+
 function runScoring_(p, s) {
+  // Read every source table ONCE and index by student; per-student full-table
+  // scans would time out at cohort scale (175 students x thousands of rows).
   var consent = consentSet_();
-  var students = readTable_('Students').filter(function (st) { return st.status === 'active' && consent[st.student_id]; });
+  var gradesIdx = indexByStudent_('Grades');
+  var skillsIdx = indexByStudent_('Skills_Matrix');
+  var reviewsIdx = indexByStudent_('Performance_Reviews');
   var counselor = {};
-  readTable_('Counselor_Notes').forEach(function (n) { counselor[n.student_id] = Number(n.potential_judgment); });
+  readTable_('Counselor_Notes').forEach(function (n) { counselor[normId_(n.student_id)] = Number(n.potential_judgment); });
+
+  var students = readTable_('Students').filter(function (st) {
+    return st.status === 'active' && consent[normId_(st.student_id)];
+  });
   var date = today_();
-  var count = 0;
+
+  var nbHeaders = ['student_id', 'date', 'performance_score', 'potential_score',
+    'performance_band', 'potential_band', 'category', 'readiness_band', 'parameters_version'];
+  var out = [];
 
   students.forEach(function (st) {
-    var rm = reviewMeans_(st.student_id);
-    var skills = readTable_('Skills_Matrix').filter(function (x) { return x.student_id === st.student_id; })
-      .sort(function (a, b) { return a.skill_id - b.skill_id; });
-    var levels = skills.filter(function (x) { return Number(x.skill_id) >= 1 && Number(x.skill_id) <= 6; })
-      .map(function (x) { return Number(x.level); });
-    var mocks = mockComposites_(st.student_id);
+    var k = normId_(st.student_id);
+
+    var reviews = reviewsIdx[k] || [];
+    var rm = null;
+    if (reviews.length) {
+      var avg = function (f) { return mean_(reviews.map(function (r) { return Number(r[f]); })); };
+      rm = {
+        perf: mean_([avg('subject_mastery'), avg('assignment_completion'), avg('exam_readiness')]),
+        pot: mean_([avg('learning_consistency'), avg('critical_thinking'), avg('motivation')]),
+      };
+    }
+
+    var grades = gradesIdx[k] || [];
+    var gradeAvg = grades.length ? normGrade(mean_(grades.map(function (g) { return Number(g.score); }))) : null;
+
+    var skills = skillsIdx[k] || [];
+    var byDate = {};
+    skills.forEach(function (x) {
+      if (String(x.source_reference).indexOf('Tryout') !== -1) (byDate[x.date] = byDate[x.date] || []).push(Number(x.level));
+    });
+    var mocks = Object.keys(byDate).sort().map(function (d) { return mean_(byDate[d]); });
+
+    // Latest level per skill row 1-6 for the readiness index.
+    var latest = {};
+    skills.forEach(function (x) {
+      var id = Number(x.skill_id);
+      if (id >= 1 && id <= 6 && (!latest[id] || String(x.date) > String(latest[id].date))) latest[id] = { level: Number(x.level), date: x.date };
+    });
+    var levels = Object.keys(latest).map(function (id) { return latest[id].level; });
 
     var perf = computePerformance({
-      grade_avg: gradeAvg5_(st.student_id),
+      grade_avg: gradeAvg,
       mock_composite: mocks.length ? mocks[mocks.length - 1] : null,
       teacher_perf: rm ? rm.perf : null,
     });
     var pot = computePotential({
       teacher_potential: rm ? rm.pot : null,
-      counselor_judgment: counselor[st.student_id] != null ? counselor[st.student_id] : null,
+      counselor_judgment: counselor[k] != null ? counselor[k] : null,
       mock_composites: mocks,
     });
     var perfBand = whichBand(perf.score), potBand = whichBand(pot.score);
     var readiness = levels.length ? computeReadiness(levels) : null;
 
-    appendRow_('Nine_Box_Results', {
-      student_id: st.student_id, date: date,
-      performance_score: perf.score, potential_score: pot.score,
-      performance_band: perfBand, potential_band: potBand,
-      category: nineBoxCategory(perfBand, potBand),
-      parameters_version: PARAMS_VERSION,
-      readiness_band: readiness != null ? whichBand(readiness) : '',
-    });
-    count++;
+    out.push([st.student_id, date, perf.score, pot.score, perfBand, potBand,
+      nineBoxCategory(perfBand, potBand), readiness != null ? whichBand(readiness) : '', PARAMS_VERSION]);
   });
-  return { _audit: 'Nine_Box_Results (' + count + ')', scored: count, date: date };
+
+  if (out.length) {
+    var sh = sheet_('Nine_Box_Results');
+    var lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    try {
+      sh.getRange(sh.getLastRow() + 1, 1, out.length, nbHeaders.length).setValues(out);
+    } finally {
+      lock.releaseLock();
+    }
+  }
+  return { _audit: 'Nine_Box_Results (' + out.length + ')', scored: out.length, date: date };
 }
 
 function latestNineBoxByStudent_() {
@@ -217,7 +265,7 @@ function cohortDashboard_(p, s) {
   var nineBox = {};
   var withConsent = 0;
   students.forEach(function (st) {
-    if (consent[st.student_id]) withConsent++;
+    if (consent[normId_(st.student_id)]) withConsent++;
     var nb = latest[st.student_id];
     if (nb && nb.performance_band && nb.potential_band) {
       var key = nb.performance_band + '|' + nb.potential_band;
@@ -308,15 +356,29 @@ function importRows_(p, s) {
   if (!rows.length) throw new Error('Tidak ada baris untuk diimpor');
   var gated = !!CONSENT_GATED[table];
   var consent = gated ? consentSet_() : null;
-  var skipped = 0, imported = 0;
+  var skipped = 0;
+
+  // Build all accepted rows, then write them in ONE setValues call. Appending
+  // row-by-row would issue thousands of writes and time out on large imports.
+  var sh = sheet_(table);
+  var headers = sh.getDataRange().getValues()[0];
+  var matrix = [];
   rows.forEach(function (row) {
-    // No scoring data enters for a student without consent on file.
     if (gated && row.student_id && !consent[normId_(row.student_id)]) { skipped++; return; }
     if (table === 'Grades' || table === 'Mock_Tests') row.import_date = row.import_date || today_();
-    appendRow_(table, row);
-    imported++;
+    matrix.push(headers.map(function (h) { return row[h] != null ? row[h] : ''; }));
   });
-  return { _audit: 'import ' + table + ' (' + imported + ')', imported: imported, skipped_no_consent: skipped };
+
+  if (matrix.length) {
+    var lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    try {
+      sh.getRange(sh.getLastRow() + 1, 1, matrix.length, headers.length).setValues(matrix);
+    } finally {
+      lock.releaseLock();
+    }
+  }
+  return { _audit: 'import ' + table + ' (' + matrix.length + ')', imported: matrix.length, skipped_no_consent: skipped };
 }
 
 /* --- Dashboard views --- */
@@ -366,7 +428,7 @@ function classView_(p, s) {
     var pl = plans[st.student_id];
     return {
       student_id: st.student_id, name: st.name, class: st['class'],
-      consent: !!consent[st.student_id],
+      consent: !!consent[normId_(st.student_id)],
       readiness_band: nb ? nb.readiness_band : null,
       category: nb ? nb.category : null,
       at_risk: !!(nb && nb.readiness_band === 'Low'),
