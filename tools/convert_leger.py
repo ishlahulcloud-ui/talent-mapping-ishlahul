@@ -26,6 +26,12 @@ ACADEMIC_YEAR = "2025/2026"
 SEMESTER = "Genap 2025/2026"
 SOURCE = "RDM PAT 2025/2026"
 
+# Consent collected at enrollment. Adjust --consent-date to the actual date and
+# confirm the enrollment consent covers this system's processing (see
+# forms/consent-form.md). Pass --no-consent to skip generating consent.csv.
+CONSENT_DATE = "2025-07-15"
+CONSENT_SCOPE = "pendaftaran"
+
 # Sheets to skip: the *UP variants (no NISN), and the recap/index sheets.
 def is_class_sheet(name: str) -> bool:
     n = name.strip()
@@ -88,11 +94,19 @@ def header_index(ws, label):
 
 
 def main():
-    if len(sys.argv) < 2:
-        sys.exit("usage: convert_leger.py <xlsx> [out_dir]")
-    src = sys.argv[1]
-    out_dir = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(__file__), "out")
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    flags = [a for a in sys.argv[1:] if a.startswith("--")]
+    if not args:
+        sys.exit("usage: convert_leger.py <xlsx> [out_dir] [--consent-date=YYYY-MM-DD] [--no-consent]")
+    src = args[0]
+    out_dir = args[1] if len(args) > 1 else os.path.join(os.path.dirname(__file__), "out")
     os.makedirs(out_dir, exist_ok=True)
+
+    consent_date = CONSENT_DATE
+    gen_consent = "--no-consent" not in flags
+    for f in flags:
+        if f.startswith("--consent-date="):
+            consent_date = f.split("=", 1)[1]
 
     wb = openpyxl.load_workbook(src, read_only=True, data_only=True)
 
@@ -167,6 +181,17 @@ def main():
         w(f"grades_{safe(kl)}.csv", ["student_id", "subject_id", "semester", "score", "source"],
           [[nisn, sid, SEMESTER, sc, SOURCE] for nisn, sid, sc in rows])
 
+    consent_hdr = ["student_id", "student_consent_date", "parent_consent_date", "consent_scope", "withdrawal_date"]
+    if gen_consent:
+        w("consent.csv", consent_hdr,
+          [[nisn, consent_date, consent_date, CONSENT_SCOPE, ""] for nisn in students])
+        per_class_nisn = {}
+        for nisn, (nm, kl) in students.items():
+            per_class_nisn.setdefault(kl, []).append(nisn)
+        for kl, ids in per_class_nisn.items():
+            w(f"consent_{safe(kl)}.csv", consent_hdr,
+              [[nisn, consent_date, consent_date, CONSENT_SCOPE, ""] for nisn in ids])
+
     # ---- report ----
     print(f"Sumber : {os.path.basename(src)}")
     print(f"Output : {out_dir}")
@@ -176,6 +201,7 @@ def main():
         print(f"   {kl:6} {len(rows)} siswa")
     print(f"Mapel  : {len(subjects)} ({sum(1 for g in subjects.values() if g=='core')} core)")
     print(f"Grades : {len(grades)} baris")
+    print(f"Consent: {'di-generate ('+str(len(students))+' siswa, tanggal '+consent_date+')' if gen_consent else 'dilewati (--no-consent)'}")
     print(f"NISN duplikat lintas kelas : {len(dup_nisn)} {dup_nisn[:5] if dup_nisn else ''}")
     print(f"Baris tanpa NISN           : {len(no_nisn)} {[n for _,n in no_nisn[:5]]}")
     if averages:
