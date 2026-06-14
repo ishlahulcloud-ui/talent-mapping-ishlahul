@@ -6,10 +6,19 @@
 
 function today_() { return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'); }
 
+// Canonical student id for matching. Sheets may store a NISN like 0095123969
+// as the number 95123969 (leading zero stripped) while a freshly-parsed CSV
+// keeps "0095123969"; this collapses both to the same key so joins/gates match
+// regardless of how each side was stored.
+function normId_(x) {
+  var s = String(x == null ? '' : x).trim();
+  return /^\d+$/.test(s) ? String(parseInt(s, 10)) : s;
+}
+
 function consentSet_() {
   var set = {};
   readTable_('Consent').forEach(function (c) {
-    if (c.student_consent_date && !c.withdrawal_date) set[String(c.student_id).trim()] = true;
+    if (c.student_consent_date && !c.withdrawal_date) set[normId_(c.student_id)] = true;
   });
   return set;
 }
@@ -302,7 +311,7 @@ function importRows_(p, s) {
   var skipped = 0, imported = 0;
   rows.forEach(function (row) {
     // No scoring data enters for a student without consent on file.
-    if (gated && row.student_id && !consent[String(row.student_id).trim()]) { skipped++; return; }
+    if (gated && row.student_id && !consent[normId_(row.student_id)]) { skipped++; return; }
     if (table === 'Grades' || table === 'Mock_Tests') row.import_date = row.import_date || today_();
     appendRow_(table, row);
     imported++;
