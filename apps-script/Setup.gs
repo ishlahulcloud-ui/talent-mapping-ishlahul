@@ -54,6 +54,7 @@ function setupSheets() {
   ensureAuditSheet_();
   seedParameters_();
   seedClusters_();
+  applyTextFormats_();
   var def = ss.getSheetByName('Sheet1');
   if (def && def.getLastRow() === 0) ss.deleteSheet(def);
   SpreadsheetApp.getUi && Logger.log('setupSheets complete: ' + Object.keys(SHEETS).join(', '));
@@ -79,6 +80,25 @@ function seedClusters_() {
     ['AGRI', 'Pertanian, Lingkungan & Keberlanjutan', 'Agribisnis, Agroteknologi, Ilmu Lingkungan, Teknologi Pangan', 'BIO,KIM,IPST,EKO', '1,4,3,2', 'Minat lingkungan/pertanian, kuat Biologi, pola pikir sains terapan', 'Minat sains rendah, dipilih karena dianggap mudah', 'Baca kasus lingkungan, proyek Biologi/Geografi terapan, mini-proyek agribisnis', 'false'],
   ];
   rows.forEach(function (r) { sh.appendRow(r); });
+}
+
+// Force ID columns to plain-text format so NISN with leading zeros (e.g.
+// 0095123969) are preserved exactly and never coerced to a number. Without
+// this, the same NISN is stored differently across sheets and joins/gates
+// (consent → grades) silently fail to match. Idempotent; run via setupSheets()
+// or standalone. Re-import data AFTER formatting (existing numeric values keep
+// their stripped form).
+function applyTextFormats_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var idCols = { user_id: 1, student_id: 1, credential_ref: 1 };
+  Object.keys(SHEETS).forEach(function (name) {
+    var sh = ss.getSheetByName(name);
+    if (!sh) return;
+    var headers = SHEETS[name];
+    headers.forEach(function (h, i) {
+      if (idCols[h]) sh.getRange(1, i + 1, sh.getMaxRows(), 1).setNumberFormat('@');
+    });
+  });
 }
 
 function ensureAuditSheet_() {

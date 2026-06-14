@@ -9,7 +9,7 @@ function today_() { return Utilities.formatDate(new Date(), Session.getScriptTim
 function consentSet_() {
   var set = {};
   readTable_('Consent').forEach(function (c) {
-    if (c.student_consent_date && !c.withdrawal_date) set[c.student_id] = true;
+    if (c.student_consent_date && !c.withdrawal_date) set[String(c.student_id).trim()] = true;
   });
   return set;
 }
@@ -302,7 +302,7 @@ function importRows_(p, s) {
   var skipped = 0, imported = 0;
   rows.forEach(function (row) {
     // No scoring data enters for a student without consent on file.
-    if (gated && row.student_id && !consent[row.student_id]) { skipped++; return; }
+    if (gated && row.student_id && !consent[String(row.student_id).trim()]) { skipped++; return; }
     if (table === 'Grades' || table === 'Mock_Tests') row.import_date = row.import_date || today_();
     appendRow_(table, row);
     imported++;
