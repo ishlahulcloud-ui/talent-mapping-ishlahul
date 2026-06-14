@@ -193,21 +193,29 @@ function runScoring_(p, s) {
     });
     var levels = Object.keys(latest).map(function (id) { return latest[id].level; });
 
-    var perf = computePerformance({
+    // Only compute an axis when it has at least one input. With rapor grades
+    // alone (no tryouts/reviews/counselor) performance is computable but
+    // potential is not — record what we can, leave the rest blank rather than
+    // throwing. Full nine-box/readiness fills in as tryout & review data arrive.
+    var hasPerf = gradeAvg != null || mocks.length || (rm && rm.perf != null);
+    var hasPot = (rm && rm.pot != null) || counselor[k] != null || mocks.length >= 3;
+    var perf = hasPerf ? computePerformance({
       grade_avg: gradeAvg,
       mock_composite: mocks.length ? mocks[mocks.length - 1] : null,
       teacher_perf: rm ? rm.perf : null,
-    });
-    var pot = computePotential({
+    }) : null;
+    var pot = hasPot ? computePotential({
       teacher_potential: rm ? rm.pot : null,
       counselor_judgment: counselor[k] != null ? counselor[k] : null,
       mock_composites: mocks,
-    });
-    var perfBand = whichBand(perf.score), potBand = whichBand(pot.score);
+    }) : null;
+    var perfBand = perf ? whichBand(perf.score) : '';
+    var potBand = pot ? whichBand(pot.score) : '';
+    var category = (perfBand && potBand) ? nineBoxCategory(perfBand, potBand) : '';
     var readiness = levels.length ? computeReadiness(levels) : null;
 
-    out.push([st.student_id, date, perf.score, pot.score, perfBand, potBand,
-      nineBoxCategory(perfBand, potBand), readiness != null ? whichBand(readiness) : '', PARAMS_VERSION]);
+    out.push([st.student_id, date, perf ? perf.score : '', pot ? pot.score : '', perfBand, potBand,
+      category, readiness != null ? whichBand(readiness) : '', PARAMS_VERSION]);
   });
 
   if (out.length) {
