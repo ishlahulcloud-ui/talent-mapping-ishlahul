@@ -168,3 +168,39 @@ var NINE_BOX = {
 function nineBoxCategory(perfBand, potBand) {
   return NINE_BOX[perfBand + '|' + potBand] || 'Developing';
 }
+
+/* ---- Major Fit (Blueprint Module D) — additive layer over the nine-box ---- */
+
+// Default fit weights (Blueprint "Suggested Scoring Weight v0.1"). Components
+// absent for a student (e.g. no portfolio/elective data) are renormalized out.
+var FIT_WEIGHTS = {
+  academic: 0.30, snbt: 0.25, interest: 0.20, elective: 0.10, counselor: 0.10, portfolio: 0.05,
+};
+
+/** Weighted fit score on 1-5; renormalizes over whichever parts are present. */
+function computeMajorFit(parts) {
+  var available = {};
+  Object.keys(FIT_WEIGHTS).forEach(function (k) {
+    if (parts[k] != null) available[k] = clamp_(parts[k]);
+  });
+  var keys = Object.keys(available);
+  if (!keys.length) return { score: null, renormalized: true, raw_parts: {} };
+  var total = 0; keys.forEach(function (k) { total += FIT_WEIGHTS[k]; });
+  var score = 0; keys.forEach(function (k) { score += available[k] * (FIT_WEIGHTS[k] / total); });
+  return { score: Math.round(score * 1e4) / 1e4, renormalized: keys.length !== 6, raw_parts: available };
+}
+
+/** Fit label. "Needs Exploration" when the student has no interest signal. */
+function fitLevel(score, hasInterest) {
+  if (score == null) return 'Needs Exploration';
+  if (!hasInterest) return 'Needs Exploration';
+  var b = whichBand(score);
+  return b === 'High' ? 'High Fit' : b === 'Medium' ? 'Medium Fit' : 'Low Fit';
+}
+
+/** Cluster readiness label from its mean SNBT-domain level. */
+function readinessLevel(score) {
+  if (score == null) return 'High-Risk';
+  var b = whichBand(score);
+  return b === 'High' ? 'Ready' : b === 'Medium' ? 'Needs Strengthening' : 'High-Risk';
+}

@@ -5,6 +5,7 @@ import { dataService } from '../services/dataService.js';
 import { Spinner, ErrorNote, Button } from '../components/ui/index.jsx';
 import { SKILLS } from '../services/mockData.js';
 import { READINESS_STYLE } from '../constants/roles.js';
+import { parentReportText } from '../constants/recommendation.js';
 
 // Printable student report (spec §11). Uses window.print(); the toolbar is
 // hidden on print. Only renders the plan content if it has been approved.
@@ -70,6 +71,19 @@ export default function ReportPrintPage() {
         <Section n="6" title="Tindakan yang disarankan">
           {plan ? <p className="text-sm text-slate-700">{plan.weekly_targets}</p> : <p className="text-sm text-slate-400">Menunggu persetujuan BK.</p>}
         </Section>
+
+        {plan && (
+          <Section n="7" title="Ringkasan untuk Orang Tua">
+            <p className="text-sm leading-relaxed text-slate-700">
+              {parentReportText({
+                cluster: 'pilihan yang sesuai minat dan profil Ananda',
+                majors: plan.major_shortlist,
+                gaps: gaps.length ? gaps.map((r) => SKILLS[r.skill_id]).join(', ') : 'beberapa kompetensi dasar',
+                interventions: plan.weekly_targets,
+              })}
+            </p>
+          </Section>
+        )}
 
         {plan && (
           <footer className="border-t border-slate-200 pt-3 text-sm text-slate-600">

@@ -194,6 +194,14 @@ var ROUTES = {
   getReport: { roles: STAFF.concat(['student']), fn: function (p, s) { return getReport_(p, s); } },
   saveReport: { roles: ['bk'], write: true, fn: function (p, s) { return saveReport_(p, s); } },
   approveReport: { roles: ['bk'], write: true, fn: function (p, s) { return approveReport_(p, s); } },
+
+  // Major recommendation (cluster fit + readiness) — staff advisory, the BK
+  // turns it into a draft plan that still passes the approval gate.
+  getRecommendation: { roles: STAFF, fn: function (p, s) { return getRecommendation_(p, s); } },
+
+  // Monthly intervention review / progress loop (Blueprint Module E)
+  getMonthlyReviews: { roles: STAFF.concat(['student']), fn: function (p, s) { return getMonthlyReviews_(p, s); } },
+  saveMonthlyReview: { roles: ['bk', 'wali_kelas'], write: true, fn: function (p, s) { return saveMonthlyReview_(p, s); } },
 };
 
 /* See Endpoints.gs for the endpoint implementations. */

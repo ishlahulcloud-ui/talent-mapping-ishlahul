@@ -60,4 +60,8 @@ export const dataService = {
   getReport: (student_id) => call('getReport', { student_id }),
   saveReport: (payload) => call('saveReport', payload),
   approveReport: (payload) => call('approveReport', payload),
+  // Major recommendation (cluster fit) + monthly review loop
+  getRecommendation: (student_id) => call('getRecommendation', { student_id }),
+  getMonthlyReviews: (student_id) => call('getMonthlyReviews', { student_id }),
+  saveMonthlyReview: (payload) => call('saveMonthlyReview', payload),
 };

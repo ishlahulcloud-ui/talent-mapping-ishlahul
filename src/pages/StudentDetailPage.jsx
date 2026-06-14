@@ -5,7 +5,10 @@ import { dataService } from '../services/dataService.js';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { Card, Spinner, ErrorNote, Badge, Button, Field } from '../components/ui/index.jsx';
 import { READINESS_STYLE } from '../constants/roles.js';
+import { COUNSELOR_CHECKLIST } from '../constants/recommendation.js';
 import SkillMatrixTable from '../components/SkillMatrixTable.jsx';
+import RecommendationCard from '../components/RecommendationCard.jsx';
+import MonthlyReviewCard from '../components/MonthlyReviewCard.jsx';
 
 export default function StudentDetailPage() {
   const { id } = useParams();
@@ -82,8 +85,18 @@ export default function StudentDetailPage() {
           ) : <p className="text-sm text-slate-400">Belum ada minat tercatat.</p>}
         </Card>
 
+        {(isBK || user.role === 'admin' || user.role === 'principal' || user.role === 'wali_kelas') && (
+          <div className="lg:col-span-2">
+            <RecommendationCard studentId={id} />
+          </div>
+        )}
+
         <div className="lg:col-span-2">
           <ReportCard report={report} isBK={isBK} studentId={id} gaps={matrix.filter((r) => r.level <= 2)} onChange={load} />
+        </div>
+
+        <div className="lg:col-span-2">
+          <MonthlyReviewCard studentId={id} canEdit={isBK || user.role === 'wali_kelas'} />
         </div>
       </div>
     </div>
@@ -100,6 +113,8 @@ function ReportCard({ report, isBK, studentId, gaps = [], onChange }) {
     narrative: plan?.narrative || '',
   }));
   const [busy, setBusy] = useState(false);
+  const [checks, setChecks] = useState({});
+  const allChecked = COUNSELOR_CHECKLIST.every((_, i) => checks[i]);
 
   async function approve() {
     setBusy(true);
@@ -167,9 +182,21 @@ function ReportCard({ report, isBK, studentId, gaps = [], onChange }) {
           <Field label="Narasi">
             <textarea value={form.narrative} onChange={(e) => setForm({ ...form, narrative: e.target.value })} rows={2} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
           </Field>
-          <div className="flex gap-2">
-            <Button variant="success" onClick={approve} disabled={busy}>Setujui & rilis</Button>
+          <div className="rounded-lg bg-slate-50 p-3">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Checklist validasi konselor</div>
+            <div className="space-y-1.5">
+              {COUNSELOR_CHECKLIST.map((q, i) => (
+                <label key={i} className="flex items-start gap-2 text-sm text-slate-600">
+                  <input type="checkbox" checked={!!checks[i]} onChange={(e) => setChecks({ ...checks, [i]: e.target.checked })} className="mt-0.5" />
+                  {q}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="success" onClick={approve} disabled={busy || !allChecked}>Setujui & rilis</Button>
             <Button variant="ghost" onClick={() => setEditing(false)}>Batal</Button>
+            {!allChecked && <span className="text-xs text-slate-400">Centang semua checklist untuk menyetujui.</span>}
           </div>
         </div>
       ) : (

@@ -111,6 +111,44 @@ export function mockDispatch(action, payload, session) {
     }
     case 'importRows':
       return { imported: (payload.rows || []).length, skipped_no_consent: 0 };
+    case 'getRecommendation': {
+      const byStudent = {
+        S001: {
+          top: [
+            { cluster_code: 'BUSN', name_id: 'Bisnis, Ekonomi & Manajemen', related_majors: 'Manajemen, Akuntansi, Ekonomi', fit_score: 3.6, fit_level: 'Medium Fit', readiness_level: 'Needs Strengthening', matched_interest: true, evidence: 'Akademik 3.5; Kesiapan SNBT 3.0; Minat sesuai', interventions: 'Drill interpretasi data, baca studi kasus bisnis' },
+            { cluster_code: 'SOCI', name_id: 'Ilmu Sosial & Psikologi', related_majors: 'Psikologi, Sosiologi, Ilmu Komunikasi', fit_score: 3.2, fit_level: 'Medium Fit', readiness_level: 'Needs Strengthening', matched_interest: false, evidence: 'Akademik 3.4; Kesiapan SNBT 3.0', interventions: 'Analisis kasus sosial, tugas literasi riset' },
+            { cluster_code: 'EDUC', name_id: 'Pendidikan & Keguruan', related_majors: 'PGSD, Pendidikan B.Inggris, PAI', fit_score: 3.0, fit_level: 'Medium Fit', readiness_level: 'Needs Strengthening', matched_interest: false, evidence: 'Akademik 3.2; Kesiapan SNBT 2.9', interventions: 'Simulasi mengajar, tutor sebaya' },
+          ],
+          backup: { cluster_code: 'LANG', name_id: 'Bahasa, Sastra & Komunikasi', related_majors: 'Sastra, Jurnalistik, Komunikasi', fit_score: 2.8, fit_level: 'Medium Fit', readiness_level: 'Needs Strengthening', matched_interest: false, evidence: 'Akademik 3.0', interventions: 'Drill menulis esai' },
+          exploration: { cluster_code: 'HUMN', name_id: 'Humaniora, Budaya & Studi Agama', related_majors: 'Studi Islam, Sejarah, Filsafat', fit_score: 2.6, fit_level: 'Low Fit', readiness_level: 'Needs Strengthening', matched_interest: false, evidence: 'Akademik 2.9', interventions: 'Program baca terstruktur' },
+          parameters_version: 'v1',
+        },
+        S002: {
+          top: [
+            { cluster_code: 'COMP', name_id: 'Ilmu Komputer & Teknologi Digital', related_majors: 'Informatika, Sistem Informasi, Data Science', fit_score: 4.3, fit_level: 'High Fit', readiness_level: 'Ready', matched_interest: true, evidence: 'Akademik 4.5; Kesiapan SNBT 4.2; Minat sesuai', interventions: 'Drill logika, proyek pemrograman dasar' },
+            { cluster_code: 'ENGR', name_id: 'Teknik & Teknologi Terapan', related_majors: 'Teknik Sipil, Mesin, Elektro', fit_score: 4.0, fit_level: 'High Fit', readiness_level: 'Ready', matched_interest: false, evidence: 'Akademik 4.3; Kesiapan SNBT 4.0', interventions: 'Drill penalaran kuantitatif' },
+            { cluster_code: 'BUSN', name_id: 'Bisnis, Ekonomi & Manajemen', related_majors: 'Manajemen, Akuntansi, Ekonomi', fit_score: 3.8, fit_level: 'High Fit', readiness_level: 'Ready', matched_interest: false, evidence: 'Akademik 4.0; Kesiapan SNBT 4.1', interventions: 'Mini-proyek wirausaha' },
+          ],
+          backup: { cluster_code: 'HLTH', name_id: 'Kesehatan & Kedokteran', related_majors: 'Kedokteran, Farmasi, Gizi', fit_score: 3.6, fit_level: 'Medium Fit', readiness_level: 'Ready', matched_interest: false, evidence: 'Akademik 4.2', interventions: 'Penguatan konsep sains' },
+          exploration: null,
+          parameters_version: 'v1',
+        },
+      };
+      return clone(byStudent[payload.student_id] || { top: [], backup: null, exploration: null, parameters_version: 'v1' });
+    }
+    case 'getMonthlyReviews': {
+      const m = {
+        S001: [
+          { date: '2026-10-05', academic_status: 'Stabil di 3.4', readiness_update: 'Berkembang', priority_weakness: 'Literasi Inggris', assigned_drills: 'Kosakata 15 menit/hari', counselor_action: 'Sesi konseling jurusan', parent_note: 'Dampingi rutinitas belajar', next_target: 'Naik ke level 3 Literasi Inggris', progress_response: 'Naik' },
+        ],
+      };
+      const rows = m[payload.student_id] || [];
+      return clone(session.role === 'student'
+        ? rows.map(({ counselor_action, priority_weakness, ...r }) => r)
+        : rows);
+    }
+    case 'saveMonthlyReview':
+      return { saved: true, progress_response: 'Stabil' };
     case 'getReport': {
       const plan = plans[payload.student_id];
       if (session.role === 'student') {

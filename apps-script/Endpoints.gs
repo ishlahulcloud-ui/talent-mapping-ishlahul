@@ -365,3 +365,134 @@ function classView_(p, s) {
     };
   });
 }
+
+/* --- Major recommendation (Blueprint Module D): cluster fit + readiness --- */
+
+function latestSkillLevels_(studentId) {
+  var skills = {};
+  readTable_('Skills_Matrix').filter(function (x) { return x.student_id === studentId; })
+    .forEach(function (x) {
+      var k = String(x.skill_id);
+      if (!skills[k] || String(x.date) > String(skills[k].date)) skills[k] = { level: Number(x.level), date: x.date };
+    });
+  return skills;
+}
+
+function gradesBySubject_(studentId) {
+  var g = {};
+  readTable_('Grades').filter(function (x) { return x.student_id === studentId; })
+    .forEach(function (x) { (g[x.subject_id] = g[x.subject_id] || []).push(Number(x.score)); });
+  return g;
+}
+
+function getRecommendation_(p, s) {
+  var sid = p.student_id;
+  if (s.role === 'wali_kelas') {
+    var st = readTable_('Students').filter(function (x) { return x.student_id === sid; })[0];
+    if (!st || st['class'] !== s['class']) throw new Error('Bukan kelas binaan Anda');
+  }
+  var clusters = readTable_('Major_Clusters').filter(function (c) { return String(c.is_active) === 'true'; });
+  var grades = gradesBySubject_(sid);
+  var skills = latestSkillLevels_(sid);
+  var interests = readTable_('Career_Interests').filter(function (x) { return x.student_id === sid; });
+  var interestMajors = interests.map(function (i) { return String(i.major).toLowerCase(); }).filter(Boolean);
+  var hasAnyInterest = interestMajors.length > 0;
+  var counselor = null;
+  readTable_('Counselor_Notes').filter(function (n) { return n.student_id === sid; })
+    .forEach(function (n) { counselor = Number(n.potential_judgment); });
+
+  var results = clusters.map(function (c) {
+    var primary = String(c.primary_subjects).split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+    var domains = String(c.snbt_domains).split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+
+    var gv = [];
+    primary.forEach(function (sub) {
+      if (grades[sub] && grades[sub].length) { var lvl = normGrade(mean_(grades[sub])); if (lvl != null) gv.push(lvl); }
+    });
+    var academic = gv.length ? mean_(gv) : null;
+
+    var sv = [];
+    domains.forEach(function (d) { if (skills[d]) sv.push(skills[d].level); });
+    var snbt = sv.length ? mean_(sv) : null;
+
+    var related = String(c.related_majors).toLowerCase();
+    var matched = interestMajors.some(function (m) {
+      if (related.indexOf(m) !== -1) return true;
+      return m.split(/\s+/).some(function (w) { return w.length > 3 && related.indexOf(w) !== -1; });
+    });
+    var interestScore = hasAnyInterest ? (matched ? 5 : 2) : null;
+
+    var fit = computeMajorFit({ academic: academic, snbt: snbt, interest: interestScore, counselor: counselor });
+    var ev = [];
+    if (academic != null) ev.push('Akademik ' + academic.toFixed(1));
+    if (snbt != null) ev.push('Kesiapan SNBT ' + snbt.toFixed(1));
+    if (matched) ev.push('Minat sesuai');
+    return {
+      cluster_code: c.cluster_code, name_id: c.name_id, related_majors: c.related_majors,
+      fit_score: fit.score, fit_level: fitLevel(fit.score, hasAnyInterest),
+      readiness_level: readinessLevel(snbt), matched_interest: matched,
+      evidence: ev.join('; '), interventions: c.interventions,
+    };
+  });
+
+  results.sort(function (a, b) { return (b.fit_score || 0) - (a.fit_score || 0); });
+  var top = results.slice(0, 3);
+  var topCodes = {}; top.forEach(function (r) { topCodes[r.cluster_code] = 1; });
+  var exploration = null;
+  for (var i = 0; i < results.length; i++) {
+    if (!topCodes[results[i].cluster_code] && results[i].matched_interest) { exploration = results[i]; break; }
+  }
+  return {
+    top: top,
+    backup: results[3] || null,
+    exploration: exploration || results[4] || null,
+    parameters_version: PARAMS_VERSION,
+  };
+}
+
+/* --- Monthly intervention review / progress loop (Blueprint Module E) --- */
+
+var BAND_ORDER = { Low: 1, Medium: 2, High: 3 };
+
+function getMonthlyReviews_(p, s) {
+  var sid = p.student_id;
+  if (s.role === 'student' && s.user_id !== sid) throw new Error('Tidak diizinkan');
+  if (s.role === 'wali_kelas') {
+    var st = readTable_('Students').filter(function (x) { return x.student_id === sid; })[0];
+    if (!st || st['class'] !== s['class']) throw new Error('Bukan kelas binaan Anda');
+  }
+  var rows = readTable_('Monthly_Reviews').filter(function (x) { return x.student_id === sid; })
+    .sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
+  // Students see a trimmed view (no raw counselor action text).
+  if (s.role === 'student') {
+    return rows.map(function (r) {
+      return { date: r.date, academic_status: r.academic_status, readiness_update: r.readiness_update,
+        assigned_drills: r.assigned_drills, next_target: r.next_target, progress_response: r.progress_response };
+    });
+  }
+  return rows;
+}
+
+function saveMonthlyReview_(p, s) {
+  var sid = p.student_id;
+  if (s.role === 'wali_kelas') {
+    var st = readTable_('Students').filter(function (x) { return x.student_id === sid; })[0];
+    if (!st || st['class'] !== s['class']) throw new Error('Bukan kelas binaan Anda');
+  }
+  // Progress-Response derived from nine-box readiness movement (last two placements).
+  var nb = readTable_('Nine_Box_Results').filter(function (x) { return x.student_id === sid; })
+    .sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
+  var progress = 'Belum ada data';
+  if (nb[0] && nb[1]) {
+    var d = (BAND_ORDER[nb[0].readiness_band] || 0) - (BAND_ORDER[nb[1].readiness_band] || 0);
+    progress = d > 0 ? 'Naik' : d < 0 ? 'Turun' : 'Stabil';
+  }
+  appendRow_('Monthly_Reviews', {
+    review_id: Utilities.getUuid(), student_id: sid, date: today_(),
+    academic_status: p.academic_status || '', readiness_update: p.readiness_update || '',
+    priority_weakness: p.priority_weakness || '', assigned_drills: p.assigned_drills || '',
+    counselor_action: p.counselor_action || '', parent_note: p.parent_note || '',
+    next_target: p.next_target || '', progress_response: progress,
+  });
+  return { _audit: 'Monthly_Reviews/' + sid, saved: true, progress_response: progress };
+}

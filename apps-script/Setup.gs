@@ -27,6 +27,13 @@ var SHEETS = {
     'approval_counselor_id', 'approval_date'],
   Consent: ['student_id', 'student_consent_date', 'parent_consent_date', 'consent_scope', 'withdrawal_date'],
   Parameters: ['version', 'key', 'value', 'note'],
+  // Major-cluster taxonomy (reference data; seeded by seedClusters()).
+  Major_Clusters: ['cluster_code', 'name_id', 'related_majors', 'primary_subjects',
+    'snbt_domains', 'strong_signals', 'risk_signals', 'interventions', 'is_active'],
+  // Monthly intervention review / progress loop (Blueprint Module E).
+  Monthly_Reviews: ['review_id', 'student_id', 'date', 'academic_status', 'readiness_update',
+    'priority_weakness', 'assigned_drills', 'counselor_action', 'parent_note',
+    'next_target', 'progress_response'],
 };
 
 // Audit logs live in a SEPARATE spreadsheet owned by the script account
@@ -46,9 +53,32 @@ function setupSheets() {
   });
   ensureAuditSheet_();
   seedParameters_();
+  seedClusters_();
   var def = ss.getSheetByName('Sheet1');
   if (def && def.getLastRow() === 0) ss.deleteSheet(def);
   SpreadsheetApp.getUi && Logger.log('setupSheets complete: ' + Object.keys(SHEETS).join(', '));
+}
+
+// Seed the major-cluster taxonomy (mapping/major-clusters.md). Reference data,
+// safe to ship. snbt_domains are skills-matrix row numbers (1-6).
+function seedClusters_() {
+  var sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Major_Clusters');
+  if (sh.getLastRow() > 1) return;
+  var rows = [
+    ['HLTH', 'Kesehatan & Kedokteran', 'Kedokteran, Farmasi, Keperawatan, Gizi, Kesehatan Masyarakat', 'BIO,KIM,MTK', '3,4,1,2', 'Nilai sains kuat, tren Biologi/Kimia naik, disiplin tinggi', 'Kimia/Biologi lemah, penalaran matematika lemah', 'Penguatan konsep sains, drill penalaran matematika, baca teks ilmiah, review tryout mingguan', 'true'],
+    ['ENGR', 'Teknik & Teknologi Terapan', 'Teknik Sipil, Teknik Mesin, Teknik Elektro, Teknik Industri', 'MTK,KIM,IPAT', '4,3,5', 'Matematika kuat, suka problem-solving, tren kuantitatif baik', 'Fondasi matematika lemah, menghindari soal kompleks', 'Drill penalaran kuantitatif, tugas problem-solving terapan, remediasi MTK/sains', 'true'],
+    ['COMP', 'Ilmu Komputer & Teknologi Digital', 'Informatika, Sistem Informasi, Data Science, Teknologi Informasi', 'MTK,INFO,BING', '4,3,5,2', 'Logika kuat, kesiapan MTK, bukti proyek/koding, baca Inggris', 'Suka gadget tapi hindari logika/MTK, tanpa bukti proyek', 'Drill logika, proyek pemrograman dasar, rencana penalaran matematika, portofolio digital', 'true'],
+    ['BUSN', 'Bisnis, Ekonomi & Manajemen', 'Manajemen, Akuntansi, Ekonomi, Bisnis Digital, Kewirausahaan', 'EKO,MTK,BINDO,BING', '3,1,2,5', 'Ekonomi kuat, numerasi, komunikasi, jiwa wirausaha', 'Numerasi lemah, minat bisnis kabur, baca data lemah', 'Drill interpretasi data, baca studi kasus bisnis, penguatan akuntansi/ekonomi, mini-proyek wirausaha', 'true'],
+    ['LAWG', 'Hukum, Pemerintahan & Kebijakan', 'Hukum, Administrasi Publik, Ilmu Politik, Hubungan Internasional', 'BINDO,PP,SEJ,SOS,BING', '1,6,2', 'Membaca & argumentasi kuat, sadar isu sosial, menulis', 'Literasi lemah, daya baca rendah, hukum demi prestise', 'Drill membaca & menulis argumen, debat/analisis kasus, refleksi isu publik, wawancara konselor', 'true'],
+    ['SOCI', 'Ilmu Sosial & Psikologi', 'Psikologi, Sosiologi, Ilmu Komunikasi, Kesejahteraan Sosial', 'SOS,BINDO,BING', '1,6,2', 'Observasi sosial, komunikasi, empati, baca reflektif', 'Mengira Psikologi = memberi nasihat, baca ilmiah lemah', 'Analisis kasus sosial, tugas literasi riset, portofolio komunikasi, klarifikasi jurusan oleh konselor', 'true'],
+    ['EDUC', 'Pendidikan & Keguruan', 'PGSD, Pendidikan B.Inggris/Matematika, Bimbingan Konseling, PAI', 'BINDO,BING,MTK,QH', '1,2,4', 'Minat mengajar, sabar, komunikasi, kuat di mapel target', 'Pendidikan hanya pilihan terakhir, komunikasi lemah', 'Simulasi mengajar, tutor sebaya, penguatan mapel, refleksi motivasi mengajar', 'true'],
+    ['LANG', 'Bahasa, Sastra & Komunikasi', 'Sastra Indonesia/Inggris, Linguistik, Jurnalistik, Komunikasi', 'BINDO,BING,BAR', '1,2,6', 'Baca/tulis kuat, minat bahasa, portofolio tulisan', 'Suka bahasa tapi tata bahasa/baca lemah, disiplin nulis rendah', 'Catatan baca, drill menulis esai, tugas terjemahan/jurnalistik, portofolio bahasa', 'true'],
+    ['HUMN', 'Humaniora, Budaya & Studi Agama', 'Ilmu Al-Quran/Tafsir, Studi Islam, Sejarah, Filsafat, Antropologi', 'QH,FIK,SEJ,BINDO,SOS', '1,6', 'Baca kuat, ingin tahu budaya/agama, penjelasan tertulis kuat', 'Daya baca rendah, motivasi tak jelas', 'Program baca terstruktur, esai reflektif, studi kasus sejarah/budaya, diskusi konselor', 'true'],
+    ['NATSCI', 'Sains Alam & Riset', 'Matematika, Statistika, Fisika, Kimia, Biologi, Aktuaria', 'MTK,KIM,BIO,IPAT', '4,3,5,2', 'Minat teori kuat, konsistensi MTK/sains tinggi', 'Nilai bagus tapi rasa ingin tahu rendah', 'Drill problem-solving lanjutan, mini-riset, baca ilmiah, review mentor', 'false'],
+    ['ARTS', 'Seni, Desain & Media Kreatif', 'DKV, Film, Seni Rupa, Desain Produk, Musik', 'SB,BINDO,BING', '1,2,5', 'Bukti portofolio, kreativitas, konsistensi karya', 'Tanpa portofolio, hanya suka menggambar, disiplin rendah', 'Rencana membangun portofolio, review proyek kreatif, literasi desain/media', 'false'],
+    ['AGRI', 'Pertanian, Lingkungan & Keberlanjutan', 'Agribisnis, Agroteknologi, Ilmu Lingkungan, Teknologi Pangan', 'BIO,KIM,IPST,EKO', '1,4,3,2', 'Minat lingkungan/pertanian, kuat Biologi, pola pikir sains terapan', 'Minat sains rendah, dipilih karena dianggap mudah', 'Baca kasus lingkungan, proyek Biologi/Geografi terapan, mini-proyek agribisnis', 'false'],
+  ];
+  rows.forEach(function (r) { sh.appendRow(r); });
 }
 
 function ensureAuditSheet_() {
