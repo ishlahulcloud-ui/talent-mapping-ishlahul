@@ -26,11 +26,13 @@ ACADEMIC_YEAR = "2025/2026"
 SEMESTER = "Genap 2025/2026"
 SOURCE = "RDM PAT 2025/2026"
 
-# Consent collected at enrollment. Adjust --consent-date to the actual date and
-# confirm the enrollment consent covers this system's processing (see
-# forms/consent-form.md). Pass --no-consent to skip generating consent.csv.
+# Consent basis: the enrollment form for MA Ishlahul Amanah's flagship
+# "Academic Mastery & Talent Mapping" program, signed at intake, covering
+# processing of grades, aptitude tests, and interviews — i.e. exactly this
+# system's processing. Adjust --consent-date to the actual signing date.
+# Pass --no-consent to skip generating consent.csv.
 CONSENT_DATE = "2025-07-15"
-CONSENT_SCOPE = "pendaftaran"
+CONSENT_SCOPE = "Form pendaftaran Program Academic Mastery & Talent Mapping (nilai, aptitude test, wawancara)"
 
 # Sheets to skip: the *UP variants (no NISN), and the recap/index sheets.
 def is_class_sheet(name: str) -> bool:
