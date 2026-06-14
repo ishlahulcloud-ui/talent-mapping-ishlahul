@@ -16,6 +16,7 @@ export const NAV = [
   { to: '/gaps', label: 'Gap Tersering', roles: ['admin', 'principal', 'bk', 'teacher'] },
   { to: '/at-risk', label: 'Perlu Perhatian', roles: ['bk', 'wali_kelas'] },
   { to: '/review', label: 'Penilaian Siswa', roles: ['teacher', 'wali_kelas'] },
+  { to: '/tryout', label: 'Input Tryout', roles: ['admin', 'teacher'] },
   { to: '/import', label: 'Impor Data', roles: ['admin'] },
   { to: '/my-map', label: 'Peta Saya', roles: ['student'] },
   { to: '/interests', label: 'Minat Jurusan', roles: ['student'] },

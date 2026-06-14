@@ -162,6 +162,8 @@ export function mockDispatch(action, payload, session) {
     case 'saveReport':
     case 'runScoring':
       return { saved: true, scored: 3 };
+    case 'saveTryout':
+      return { saved: Object.keys(payload.levels || {}).length };
     case 'approveReport': {
       if (plans[payload.student_id]) plans[payload.student_id].approval_date = new Date().toISOString().slice(0, 10);
       return { approved: true };

@@ -10,6 +10,7 @@ import TeacherReviewPage from './pages/TeacherReviewPage.jsx';
 import MyMapPage from './pages/MyMapPage.jsx';
 import InterestsPage from './pages/InterestsPage.jsx';
 import ImportPage from './pages/ImportPage.jsx';
+import TryoutEntryPage from './pages/TryoutEntryPage.jsx';
 import TopGapsPage from './pages/TopGapsPage.jsx';
 import AtRiskPage from './pages/AtRiskPage.jsx';
 
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="/gaps" element={<ProtectedRoute roles={['admin', 'principal', 'bk', 'teacher']}><TopGapsPage /></ProtectedRoute>} />
           <Route path="/at-risk" element={<ProtectedRoute roles={['bk', 'wali_kelas']}><AtRiskPage /></ProtectedRoute>} />
           <Route path="/import" element={<ProtectedRoute roles={['admin']}><ImportPage /></ProtectedRoute>} />
+          <Route path="/tryout" element={<ProtectedRoute roles={['admin', 'teacher']}><TryoutEntryPage /></ProtectedRoute>} />
           <Route path="/review" element={<ProtectedRoute roles={['teacher', 'wali_kelas']}><TeacherReviewPage /></ProtectedRoute>} />
           <Route path="/my-map" element={<ProtectedRoute roles={['student']}><MyMapPage /></ProtectedRoute>} />
           <Route path="/interests" element={<ProtectedRoute roles={['student']}><InterestsPage /></ProtectedRoute>} />

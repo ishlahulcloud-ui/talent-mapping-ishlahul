@@ -177,6 +177,7 @@ var ROUTES = {
 
   // Feature 3 — Skills matrix
   getMatrix: { roles: STAFF.concat(['student']), fn: function (p, s) { return getMatrix_(p, s); } },
+  saveTryout: { roles: ['admin', 'teacher'], write: true, fn: function (p, s) { return saveTryout_(p, s); } },
 
   // Feature 1 feeder — admin bulk import
   importRows: { roles: ['admin'], write: true, fn: function (p, s) { return importRows_(p, s); } },

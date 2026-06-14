@@ -46,6 +46,7 @@ export const dataService = {
   saveReview: (payload) => call('saveReview', payload),
   // Feature 3
   getMatrix: (student_id) => call('getMatrix', { student_id }),
+  saveTryout: (payload) => call('saveTryout', payload),
   // Feature 1 feeder
   importRows: (table, rows) => call('importRows', { table, rows }),
   // Feature 4

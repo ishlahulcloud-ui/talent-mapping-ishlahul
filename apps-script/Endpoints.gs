@@ -98,6 +98,38 @@ function saveReview_(p, s) {
 
 /* --- Feature 3: Skills matrix --- */
 
+// In-app tryout entry (replaces CSV import for tryouts): write one Skills_Matrix
+// row per subtest (rows 1-6) at level 1-5, tagged with a Tryout source so the
+// scoring engine picks them up as mock composites + readiness input.
+function saveTryout_(p, s) {
+  var sid = p.student_id;
+  if (!sid) throw new Error('Pilih siswa');
+  if (!consentSet_()[normId_(sid)]) throw new Error('Consent siswa belum tercatat');
+  var date = p.date || today_();
+  var provider = p.provider || 'Tryout';
+  var levels = p.levels || {};
+  var sh = sheet_('Skills_Matrix');
+  var headers = sh.getDataRange().getValues()[0];
+  var matrix = [];
+  for (var i = 1; i <= 6; i++) {
+    var lvl = Number(levels[i]);
+    if (lvl >= 1 && lvl <= 5) {
+      var obj = { student_id: sid, skill_id: i, level: lvl,
+        source_reference: 'Tryout ' + date + ' / ' + provider + ' / subtes ' + i, date: date };
+      matrix.push(headers.map(function (h) { return obj[h] != null ? obj[h] : ''; }));
+    }
+  }
+  if (!matrix.length) throw new Error('Isi minimal satu subtes dengan level 1-5');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    sh.getRange(sh.getLastRow() + 1, 1, matrix.length, headers.length).setValues(matrix);
+  } finally {
+    lock.releaseLock();
+  }
+  return { _audit: 'Skills_Matrix tryout/' + sid, saved: matrix.length };
+}
+
 function getMatrix_(p, s) {
   if (s.role === 'student' && s.user_id !== p.student_id) throw new Error('Tidak diizinkan');
   var rows = readTable_('Skills_Matrix').filter(function (x) { return x.student_id === p.student_id; });
