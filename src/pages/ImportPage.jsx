@@ -19,12 +19,34 @@ const TABLES = {
 // Tables not subject to the consent gate (reference data + consent itself).
 const UNGATED = new Set(['Students', 'Subjects', 'Consent']);
 
+// Split one CSV line, honoring double-quoted fields (which may contain commas)
+// and escaped quotes (""). A naive split(',') corrupts any field with a comma.
+function parseCsvLine(line) {
+  const out = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++; } else { inQuotes = false; }
+      } else cur += c;
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ',') {
+      out.push(cur); cur = '';
+    } else cur += c;
+  }
+  out.push(cur);
+  return out;
+}
+
 function parseCsv(text) {
   const lines = text.trim().split(/\r?\n/).filter(Boolean);
   if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map((h) => h.trim());
+  const headers = parseCsvLine(lines[0]).map((h) => h.trim());
   return lines.slice(1).map((line) => {
-    const cells = line.split(',');
+    const cells = parseCsvLine(line);
     const obj = {};
     headers.forEach((h, i) => { obj[h] = (cells[i] || '').trim(); });
     return obj;

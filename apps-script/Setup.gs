@@ -174,6 +174,35 @@ function appendRows_(ss, name, rows) {
 }
 
 /**
+ * Reset all student data for a clean re-import: clears data rows (keeps
+ * headers) of student-related tables, removes student-role Users (keeps staff),
+ * and clears the PIN_Distribution sheet. Reference data (Subjects,
+ * Major_Clusters, Parameters) and staff accounts are kept.
+ *
+ * Use this to wipe the demo cohort and any malformed import before re-importing
+ * the real roster. Destructive — only run when you intend a clean slate.
+ */
+function clearImportedData() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var tables = ['Students', 'Grades', 'Consent', 'Skills_Matrix', 'Performance_Reviews',
+    'Counselor_Notes', 'Career_Interests', 'Nine_Box_Results', 'Skill_Gap_Results',
+    'Study_Plans', 'Monthly_Reviews', 'PIN_Distribution'];
+  tables.forEach(function (name) {
+    var sh = ss.getSheetByName(name);
+    if (sh && sh.getLastRow() > 1) sh.deleteRows(2, sh.getLastRow() - 1);
+  });
+  var u = ss.getSheetByName('Users');
+  if (u && u.getLastRow() > 1) {
+    var vals = u.getDataRange().getValues();
+    var roleCol = vals[0].indexOf('role');
+    for (var r = vals.length - 1; r >= 1; r--) {
+      if (String(vals[r][roleCol]) === 'student') u.deleteRow(r + 1);
+    }
+  }
+  Logger.log('clearImportedData selesai. Data siswa & demo dibersihkan; Subjects/Major_Clusters/Parameters/akun staf tetap. Berikutnya: re-import Students -> Consent -> Grades, lalu provisionStudentLogins() + runScoring.');
+}
+
+/**
  * Create NISN + PIN login accounts for every Students row that doesn't yet
  * have a Users account. Generates a random 6-digit PIN per student, stores
  * only its hash (hashPin_ from Code.gs), and writes the plaintext NISN→PIN
