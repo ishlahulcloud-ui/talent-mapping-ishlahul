@@ -6,3 +6,7 @@ dist/
 *.log
 .vercel
 apps-script/.clasp.json
+
+# Converted real student data (PII) — never commit. The convert script is
+# tracked; its output is not.
+tools/out/

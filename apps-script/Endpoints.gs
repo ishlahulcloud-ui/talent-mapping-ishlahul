@@ -275,7 +275,11 @@ function approveReport_(p, s) {
 /* --- Admin data import (Feature 1 feeder) --- */
 
 // Tables an admin may bulk-import into. Generated/scored tables are excluded.
+// Students & Subjects are reference data (roster, subject master); the rest
+// are scoring inputs.
 var IMPORTABLE = {
+  Students: ['student_id', 'name', 'class', 'academic_year', 'status'],
+  Subjects: ['subject_id', 'name', 'group'],
   Grades: ['student_id', 'subject_id', 'semester', 'score', 'source', 'import_date'],
   Mock_Tests: ['test_id', 'student_id', 'date', 'provider', 'subtest', 'score', 'percentile'],
   Skills_Matrix: ['student_id', 'skill_id', 'level', 'source_reference', 'date'],
@@ -283,16 +287,22 @@ var IMPORTABLE = {
   Consent: ['student_id', 'student_consent_date', 'parent_consent_date', 'consent_scope', 'withdrawal_date'],
 };
 
+// Consent gate applies only to scoring-input tables. Reference data
+// (Students, Subjects) and the consent records themselves are never gated —
+// a roster must exist before consent can be recorded against it.
+var CONSENT_GATED = { Grades: 1, Mock_Tests: 1, Skills_Matrix: 1, Counselor_Notes: 1 };
+
 function importRows_(p, s) {
   var table = p.table;
   if (!IMPORTABLE[table]) throw new Error('Tabel tidak boleh diimpor: ' + table);
   var rows = p.rows || [];
   if (!rows.length) throw new Error('Tidak ada baris untuk diimpor');
-  var consent = consentSet_();
+  var gated = !!CONSENT_GATED[table];
+  var consent = gated ? consentSet_() : null;
   var skipped = 0, imported = 0;
   rows.forEach(function (row) {
-    // Consent gate: no student data enters scoring tables without consent on file.
-    if (table !== 'Consent' && row.student_id && !consent[row.student_id]) { skipped++; return; }
+    // No scoring data enters for a student without consent on file.
+    if (gated && row.student_id && !consent[row.student_id]) { skipped++; return; }
     if (table === 'Grades' || table === 'Mock_Tests') row.import_date = row.import_date || today_();
     appendRow_(table, row);
     imported++;

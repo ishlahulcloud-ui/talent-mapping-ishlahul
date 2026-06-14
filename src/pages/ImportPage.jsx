@@ -7,12 +7,17 @@ import { Card, ErrorNote, Button, Field } from '../components/ui/index.jsx';
 // grade management). Paste CSV with a header row; the backend whitelists which
 // tables may be imported and enforces the consent gate.
 const TABLES = {
+  Students: 'student_id,name,class,academic_year,status',
+  Subjects: 'subject_id,name,group',
   Grades: 'student_id,subject_id,semester,score,source',
   Mock_Tests: 'test_id,student_id,date,provider,subtest,score,percentile',
   Skills_Matrix: 'student_id,skill_id,level,source_reference,date',
   Counselor_Notes: 'note_id,student_id,counselor_id,date,note,potential_judgment',
   Consent: 'student_id,student_consent_date,parent_consent_date,consent_scope,withdrawal_date',
 };
+
+// Tables not subject to the consent gate (reference data + consent itself).
+const UNGATED = new Set(['Students', 'Subjects', 'Consent']);
 
 function parseCsv(text) {
   const lines = text.trim().split(/\r?\n/).filter(Boolean);
@@ -48,7 +53,12 @@ export default function ImportPage() {
     <div className="space-y-4">
       <div>
         <h2 className="text-xl font-semibold text-slate-800">Impor Data</h2>
-        <p className="text-sm text-slate-500">Tempel CSV (baris pertama = header). Baris siswa tanpa consent akan dilewati otomatis.</p>
+        <p className="text-sm text-slate-500">
+          Tempel CSV (baris pertama = header).{' '}
+          {UNGATED.has(table)
+            ? 'Tabel ini data referensi — tidak terkena gerbang consent.'
+            : 'Baris siswa tanpa consent akan dilewati otomatis.'}
+        </p>
       </div>
 
       {err && <ErrorNote>{err}</ErrorNote>}

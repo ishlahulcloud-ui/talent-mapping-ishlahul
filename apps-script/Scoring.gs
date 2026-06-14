@@ -23,13 +23,16 @@ function mean_(arr) {
   return s / arr.length;
 }
 
-/** Rapor average (0-100) -> 1-5. parameters/v1.md "Grade Normalization". */
+/** Rapor average (0-100) -> 1-5. parameters/v1.md "Grade Normalization".
+ * Cut points are quintiles of the real 2025/2026 PAT distribution (rapor
+ * grades cluster tightly ~80-90, so a flat 0-100 map collapses everyone into
+ * one band). Recompute per cohort. */
 function normGrade(avg100) {
   if (avg100 == null) return null;
-  if (avg100 < 70) return 1.0;
-  if (avg100 < 78) return 2.0;
-  if (avg100 < 85) return 3.0;
-  if (avg100 < 92) return 4.0;
+  if (avg100 < 82.5) return 1.0;
+  if (avg100 < 84.0) return 2.0;
+  if (avg100 < 85.2) return 3.0;
+  if (avg100 < 86.6) return 4.0;
   return 5.0;
 }
 

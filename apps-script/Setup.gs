@@ -142,3 +142,37 @@ function appendRows_(ss, name, rows) {
   var sh = ss.getSheetByName(name);
   rows.forEach(function (r) { sh.appendRow(r); });
 }
+
+/**
+ * Create NISN + PIN login accounts for every Students row that doesn't yet
+ * have a Users account. Generates a random 6-digit PIN per student, stores
+ * only its hash (hashPin_ from Code.gs), and writes the plaintext NISN→PIN
+ * list to a temporary "PIN_Distribution" sheet for the admin to print and
+ * hand out, then DELETE. Re-running only provisions students still missing
+ * an account, so it is safe to run again after importing more students.
+ */
+function provisionStudentLogins() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var students = readTable_('Students');
+  var existing = {};
+  readTable_('Users').forEach(function (u) { existing[String(u.user_id)] = true; });
+
+  var dist = ss.getSheetByName('PIN_Distribution') || ss.insertSheet('PIN_Distribution');
+  if (dist.getLastRow() === 0) dist.appendRow(['student_id', 'name', 'class', 'PIN']);
+
+  var created = 0;
+  students.forEach(function (st) {
+    var id = String(st.student_id);
+    if (!id || existing[id]) return;
+    var pin = String(Math.floor(100000 + Math.random() * 900000)); // 6 digits
+    appendRow_('Users', {
+      user_id: id, name: st.name, role: 'student', status: 'active',
+      auth_method: 'pin', credential_ref: hashPin_(pin, id), 'class': st['class'],
+    });
+    dist.appendRow([id, st.name, st['class'], pin]);
+    existing[id] = true;
+    created++;
+  });
+  Logger.log('provisionStudentLogins: ' + created + ' akun siswa dibuat. PIN ada di sheet "PIN_Distribution" — cetak, bagikan, lalu HAPUS sheet itu.');
+  return created;
+}
