@@ -51,6 +51,7 @@ export const dataService = {
   // Feature 4
   runScoring: () => call('runScoring'),
   getNineBox: (student_id) => call('getNineBox', { student_id }),
+  getMyReadiness: (student_id) => call('getMyReadiness', { student_id }),
   cohortDashboard: () => call('cohortDashboard'),
   classView: (klass) => call('classView', klass ? { class: klass } : {}),
   topGaps: () => call('topGaps'),

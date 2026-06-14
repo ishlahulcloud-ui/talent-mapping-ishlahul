@@ -176,6 +176,19 @@ function latestNineBoxByStudent_() {
   return latest;
 }
 
+// Student-safe readiness: only the band + movement, never the nine-box cell,
+// category, or component scores (spec §9.3 — students don't see the grid).
+function getMyReadiness_(p, s) {
+  if (s.role === 'student' && s.user_id !== p.student_id) throw new Error('Tidak diizinkan');
+  var rows = readTable_('Nine_Box_Results').filter(function (x) { return x.student_id === p.student_id; })
+    .sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });
+  return {
+    band: rows[0] ? rows[0].readiness_band : null,
+    date: rows[0] ? rows[0].date : null,
+    previous_band: rows[1] ? rows[1].readiness_band : null,
+  };
+}
+
 function getNineBox_(p, s) {
   var rows = readTable_('Nine_Box_Results').filter(function (x) { return x.student_id === p.student_id; })
     .sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); });

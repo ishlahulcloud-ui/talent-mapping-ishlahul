@@ -85,6 +85,10 @@ export function mockDispatch(action, payload, session) {
       return clone(matrices[payload.student_id] || []);
     case 'getNineBox':
       return clone(nineBox[payload.student_id] || { current: null, previous: null, history: [] });
+    case 'getMyReadiness': {
+      const nb = nineBox[payload.student_id];
+      return { band: nb?.current?.readiness_band || null, date: nb?.current?.date || null, previous_band: nb?.previous?.readiness_band || null };
+    }
     case 'cohortDashboard':
       return clone(dashboard);
     case 'classView': {

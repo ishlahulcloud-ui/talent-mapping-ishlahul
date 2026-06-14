@@ -184,6 +184,7 @@ var ROUTES = {
   // Feature 4 — Nine-box + scoring run
   runScoring: { roles: ['admin', 'bk'], write: true, fn: function (p, s) { return runScoring_(p, s); } },
   getNineBox: { roles: STAFF, fn: function (p, s) { return getNineBox_(p, s); } },
+  getMyReadiness: { roles: ['student'], fn: function (p, s) { return getMyReadiness_(p, s); } },
   cohortDashboard: { roles: ['admin', 'principal', 'bk', 'wali_kelas'], fn: function (p, s) { return cohortDashboard_(p, s); } },
   classView: { roles: ['admin', 'principal', 'bk', 'wali_kelas'], fn: function (p, s) { return classView_(p, s); } },
   topGaps: { roles: ['admin', 'principal', 'bk', 'teacher'], fn: function (p, s) { return topGaps_(p, s); } },

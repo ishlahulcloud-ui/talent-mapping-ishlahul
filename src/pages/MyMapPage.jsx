@@ -15,16 +15,16 @@ export default function MyMapPage() {
   useEffect(() => {
     Promise.all([
       dataService.getMatrix(user.user_id),
-      dataService.getNineBox(user.user_id),
+      dataService.getMyReadiness(user.user_id),
       dataService.getReport(user.user_id),
-    ]).then(([matrix, nineBox, report]) => setData({ matrix, nineBox, report }))
+    ]).then(([matrix, readiness, report]) => setData({ matrix, readiness, report }))
       .catch((e) => setErr(e.message));
   }, [user.user_id]);
 
   if (err) return <ErrorNote>{err}</ErrorNote>;
   if (!data) return <Spinner />;
 
-  const band = data.nineBox.current?.readiness_band;
+  const band = data.readiness.band;
   const style = band ? READINESS_STYLE[band] : null;
   const strengths = data.matrix.filter((r) => r.level >= 4);
   const gaps = data.matrix.filter((r) => r.level <= 2);
